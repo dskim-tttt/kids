@@ -51,3 +51,5 @@ GitHub API 접근이 거부되어 원격 저장소 생성·업로드는 아직 �
 - Android lint: 오류 0, 경고 0.
 - `scripts/cloud-setup.sh` 재실행 성공. 위치 서비스가 있는 휴대폰에서의 실제 동작은 미검증.
 - 신규 Git 저장소는 클라우드 작업 폴더에만 초기화됨. GitHub 연결과 업로드는 미완료.
+
+화면 디자인 제안: [docs/design.md](docs/design.md). 시안의 탐험·도장 화면은 미구현 확장 제안이다.
