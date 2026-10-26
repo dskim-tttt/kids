@@ -1,0 +1,7 @@
+<resources>
+    <string name="gps_unsupported">이 기기에는 GPS가 없어요</string>
+    <string name="gps_waiting_window">GPS 신호를 기다려요 · 창가나 실외에서 더 잘 잡혀요</string>
+    <string name="gps_unavailable">GPS를 사용할 수 없어요</string>
+    <string name="gps_disabled">GPS가 꺼져 있어요 · 위치 설정을 켜 주세요</string>
+    <string name="gps_waiting">GPS 신호를 기다리고 있어요</string>
+</resources>
