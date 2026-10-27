@@ -9,5 +9,8 @@
     <string name="arrival_preview_city">수원시</string>
     <string name="arrival_sound_setting">도시 알림 소리</string>
     <string name="arrival_effects_setting">화면 움직임 효과</string>
-    <string name="arrival_settings_note">새 도시 도장이 확정되면 도시 이름 배지가 나타나요. 소리는 휴대폰의 무음·방해금지·볼륨 설정을 따라요. 소리·움직임 선택만 이 기기에 저장해요.</string>
+    <string name="arrival_settings_note">처음 방문하거나 다른 도시에서 돌아온 것이 확인되면 도시 배지가 나타나요. 소리는 휴대폰의 무음·방해금지·볼륨 설정을 따라요. 소리·움직임 선택만 이 기기에 저장해요.</string>
+    <string name="arrival_revisit_title">다시 만난 도시!</string>
+    <string name="arrival_revisit_subtitle">다시 와서 반가워요!</string>
+    <string name="arrival_revisit_announcement">%1$s에 다시 왔어요</string>
 </resources>

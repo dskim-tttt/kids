@@ -18,6 +18,7 @@ public final class TripSession {
     private final LinkedHashMap<String, Stamp> stamps = new LinkedHashMap<>();
     private final Set<Integer> discoveries = new HashSet<>();
     private String candidate;
+    private String confirmedCity;
     private long candidateSince, lastObservation;
     private int card;
     public int selectedTab;
@@ -34,13 +35,15 @@ public final class TripSession {
     public boolean needsCityConfirmation() { return candidate != null; }
     public void interruptCityConfirmation() { candidate = null; }
 
-    /** Two successful observations >=60s apart, without interruption or a long gap. */
+    /** A confirmed city change (including a return); the stamp collection stays unique.
+     * Requires two observations >=60s apart, without interruption or a long gap.
+     */
     public boolean observeCity(String key, String name, long elapsedMs) {
         if (key == null || key.trim().isEmpty() || name == null || name.trim().isEmpty() || elapsedMs < 0) {
             interruptCityConfirmation();
             return false;
         }
-        if (stamps.containsKey(key)) {
+        if (key.equals(confirmedCity)) {
             interruptCityConfirmation();
             return false;
         }
@@ -53,12 +56,14 @@ public final class TripSession {
         }
         lastObservation = elapsedMs;
         if (elapsedMs - candidateSince < CITY_CONFIRM_MS) return false;
-        stamps.put(key, new Stamp(name.trim()));
+        stamps.putIfAbsent(key, new Stamp(name.trim()));
+        confirmedCity = key;
         interruptCityConfirmation();
         return true;
     }
     public void resetJourney() {
         stamps.clear();
+        confirmedCity = null;
         discoveries.clear();
         card = 0;
         interruptCityConfirmation();

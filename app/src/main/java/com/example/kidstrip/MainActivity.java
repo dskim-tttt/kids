@@ -245,7 +245,7 @@ public class MainActivity extends Activity implements LocationListener {
         settings.addView(label(R.string.arrival_settings_note, 14));
         Button preview = button(R.id.arrival_preview, R.string.arrival_preview_button, false);
         preview.setOnClickListener(view -> cityArrivalOverlay.show(getString(R.string.arrival_preview_city),
-                true, session.arrivalSoundEnabled, session.arrivalEffectsEnabled));
+                CityArrivalOverlay.Kind.PREVIEW, session.arrivalSoundEnabled, session.arrivalEffectsEnabled));
         settings.addView(preview);
         page.addView(settings);
     }
@@ -577,9 +577,12 @@ public class MainActivity extends Activity implements LocationListener {
         } else {
             cityAnchor = anchor;
             city.setText(name);
+            int previousStampCount = session.stampCount();
             if (session.observeCity(stampKey, name, SystemClock.elapsedRealtime())) {
                 renderStamps();
-                cityArrivalOverlay.show(name, false, session.arrivalSoundEnabled, session.arrivalEffectsEnabled);
+                CityArrivalOverlay.Kind kind = session.stampCount() > previousStampCount
+                        ? CityArrivalOverlay.Kind.FIRST_VISIT : CityArrivalOverlay.Kind.RETURN_VISIT;
+                cityArrivalOverlay.show(name, kind, session.arrivalSoundEnabled, session.arrivalEffectsEnabled);
             }
         }
     }

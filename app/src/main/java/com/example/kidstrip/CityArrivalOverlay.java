@@ -20,6 +20,7 @@ import android.widget.TextView;
 
 /** Foreground-only arrival presentation; it never creates stamps or saves a city. */
 public final class CityArrivalOverlay {
+    public enum Kind { FIRST_VISIT, RETURN_VISIT, PREVIEW }
     private final Activity activity;
     private final View content;
     private final FrameLayout overlay;
@@ -89,15 +90,19 @@ public final class CityArrivalOverlay {
         view.setPadding(0, dp(8), 0, dp(8));
         return view;
     }
-    public void show(String cityName, boolean preview, boolean playSound, boolean effects) {
+    public void show(String cityName, Kind kind, boolean playSound, boolean effects) {
         hide();
         badge.setCity(cityName);
         city.setText(cityName);
-        title.setText(preview ? R.string.arrival_preview_title : R.string.arrival_title);
-        subtitle.setText(preview ? R.string.arrival_preview_note : R.string.arrival_subtitle);
+        boolean preview = kind == Kind.PREVIEW;
+        boolean revisit = kind == Kind.RETURN_VISIT;
+        title.setText(preview ? R.string.arrival_preview_title
+                : revisit ? R.string.arrival_revisit_title : R.string.arrival_title);
+        subtitle.setText(preview ? R.string.arrival_preview_note
+                : revisit ? R.string.arrival_revisit_subtitle : R.string.arrival_subtitle);
         overlay.setVisibility(View.VISIBLE);
         content.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
-        if (Build.VERSION.SDK_INT >= 28) overlay.setAccessibilityPaneTitle(activity.getString(R.string.arrival_title));
+        if (Build.VERSION.SDK_INT >= 28) overlay.setAccessibilityPaneTitle(title.getText());
         panel.setScaleX(1); panel.setScaleY(1); panel.setAlpha(1);
         boolean animate = effects && ValueAnimator.areAnimatorsEnabled();
         sparkles.setVisibility(animate ? View.VISIBLE : View.GONE);
@@ -108,7 +113,8 @@ public final class CityArrivalOverlay {
                     .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
         }
         if (playSound) sound.play();
-        city.announceForAccessibility(activity.getString(preview ? R.string.arrival_preview_announcement : R.string.stamp_announcement, cityName));
+        city.announceForAccessibility(activity.getString(preview ? R.string.arrival_preview_announcement
+                : revisit ? R.string.arrival_revisit_announcement : R.string.stamp_announcement, cityName));
         AccessibilityManager accessibility = (AccessibilityManager) activity.getSystemService(Context.ACCESSIBILITY_SERVICE);
         // Screen-reader users can read at their own pace and use the close button.
         if (accessibility == null || !accessibility.isTouchExplorationEnabled()) {

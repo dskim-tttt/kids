@@ -45,7 +45,9 @@ public class TripSessionTest {
         assertFalse(s.observeCity("A", "수원", 120_000));
         s.observeCity("B", "용인", 180_000);
         s.observeCity("B", "용인", 240_000);
-        s.observeCity("A", "수원", 300_000);
+        assertFalse(s.observeCity("A", "수원", 300_000));
+        assertTrue(s.observeCity("A", "수원", 360_000));
+        assertFalse(s.observeCity("A", "수원", 420_000));
         assertEquals(2, s.stampCount());
         assertEquals("수원", s.stamps().get(0).city);
         assertEquals("용인", s.stamps().get(1).city);
@@ -97,5 +99,34 @@ public class TripSessionTest {
         assertFalse(session.arrivalSoundEnabled);
         assertFalse(session.arrivalEffectsEnabled);
         assertTrue(new TripSession().arrivalSoundEnabled);
+    }
+    @Test public void remainingInTheSameCityNeverRepeatsTheArrival() {
+        TripSession s = new TripSession();
+        s.observeCity("A", "수원", 0);
+        assertTrue(s.observeCity("A", "수원", 60_000));
+        s.interruptCityConfirmation();
+        assertFalse(s.observeCity("A", "수원", 400_000));
+        assertFalse(s.observeCity("A", "수원", 460_000));
+        assertEquals(1, s.stampCount());
+    }
+    @Test public void unconfirmedDetourOrFailedLookupCannotCauseAFakeReturn() {
+        TripSession s = new TripSession();
+        s.observeCity("A", "수원", 0);
+        s.observeCity("A", "수원", 60_000);
+        assertFalse(s.observeCity("B", "용인", 120_000));
+        assertFalse(s.observeCity("A", "수원", 180_000));
+        s.observeCity(null, null, 240_000);
+        assertFalse(s.observeCity("A", "수원", 300_000));
+        assertFalse(s.needsCityConfirmation());
+        assertEquals(1, s.stampCount());
+    }
+    @Test public void newJourneyCanCelebrateTheSameStartingCityAgain() {
+        TripSession s = new TripSession();
+        s.observeCity("A", "수원", 0);
+        s.observeCity("A", "수원", 60_000);
+        s.resetJourney();
+        assertFalse(s.observeCity("A", "수원", 120_000));
+        assertTrue(s.observeCity("A", "수원", 180_000));
+        assertEquals(1, s.stampCount());
     }
 }

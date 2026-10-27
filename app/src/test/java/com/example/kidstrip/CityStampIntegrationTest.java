@@ -133,4 +133,49 @@ public class CityStampIntegrationTest {
         assertEquals(0, session().stampCount());
         assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
     }
+    @Test public void roundTripReplaysSoundAndReturnGreetingWithoutDuplicateStamps() {
+        android.media.AudioManager audio = (android.media.AudioManager) activity.getSystemService(android.content.Context.AUDIO_SERVICE);
+        android.app.NotificationManager notifications = (android.app.NotificationManager) activity.getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+        shadowOf(notifications).setNotificationPolicyAccessGranted(true);
+        notifications.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_ALL);
+        audio.setRingerMode(android.media.AudioManager.RINGER_MODE_NORMAL);
+        audio.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, 5, 0);
+        java.util.concurrent.atomic.AtomicInteger sounds = new java.util.concurrent.atomic.AtomicInteger();
+        org.robolectric.shadows.ShadowMediaPlayer.setCreateListener((player, shadow) -> sounds.incrementAndGet());
+        org.robolectric.shadows.ShadowMediaPlayer.setMediaInfoProvider(source -> new org.robolectric.shadows.ShadowMediaPlayer.MediaInfo(750, 0));
+        city("수원시"); fix();
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(61)); fix();
+        assertEquals(1, sounds.get());
+        activity.findViewById(R.id.arrival_close).performClick();
+        city("용인시");
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5)); fix();
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(61)); fix();
+        assertEquals(2, sounds.get());
+        activity.findViewById(R.id.arrival_close).performClick();
+        city("수원시");
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5)); fix();
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(61)); fix();
+        assertEquals(2, session().stampCount());
+        assertEquals(3, sounds.get());
+        assertEquals(View.VISIBLE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+        LinearLayout panel = activity.findViewById(R.id.arrival_panel);
+        assertEquals(activity.getString(R.string.arrival_revisit_title), ((TextView) panel.getChildAt(0)).getText().toString());
+        assertEquals(activity.getString(R.string.arrival_revisit_subtitle), ((TextView) panel.getChildAt(3)).getText().toString());
+        activity.findViewById(R.id.arrival_close).performClick();
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5)); fix();
+        assertEquals(3, sounds.get());
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+    }
+    @Test public void briefUnconfirmedNeighbourDoesNotReplayTheCurrentCityGreeting() {
+        city("수원시"); fix();
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(61)); fix();
+        activity.findViewById(R.id.arrival_close).performClick();
+        city("용인시");
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5)); fix();
+        city("수원시");
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(61)); fix();
+        assertEquals(1, session().stampCount());
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+    }
 }
