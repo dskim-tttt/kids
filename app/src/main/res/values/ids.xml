@@ -1,0 +1,17 @@
+<resources>
+    <item type="id" name="nav_trip" />
+    <item type="id" name="nav_explore" />
+    <item type="id" name="nav_stamps" />
+    <item type="id" name="page_trip" />
+    <item type="id" name="page_explore" />
+    <item type="id" name="page_stamps" />
+    <item type="id" name="card_title" />
+    <item type="id" name="card_found" />
+    <item type="id" name="card_next" />
+    <item type="id" name="discovery_summary" />
+    <item type="id" name="stamp_list" />
+    <item type="id" name="new_journey" />
+    <item type="id" name="gps_speed" />
+    <item type="id" name="gps_city" />
+    <item type="id" name="location_allow" />
+</resources>

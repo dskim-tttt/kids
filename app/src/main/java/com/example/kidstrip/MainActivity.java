@@ -31,6 +31,18 @@ public class MainActivity extends Activity implements LocationListener {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final java.util.concurrent.atomic.AtomicBoolean legacyGeocoderBusy = new java.util.concurrent.atomic.AtomicBoolean();
     private final ExecutorService geocoding = Executors.newSingleThreadExecutor();
+    private static final int CREAM = Color.rgb(246, 243, 233);
+    private static final int TEAL = Color.rgb(36, 107, 100);
+    private static final int INK = Color.rgb(23, 65, 62);
+    private static final int YELLOW = Color.rgb(255, 206, 105);
+    private TripSession session;
+    private LinearLayout[] pages;
+    private Button[] tabs;
+    private Button foundButton;
+    private ScrollView scroll;
+    private SceneryView illustration;
+    private TextView cardTitle, cardQuestion, cardFact, cardPosition, discoveries, stampSummary, tripStampSummary;
+    private LinearLayout stampList;
     private LocationManager manager;
     private TextView speed, city, status;
     private Location latest, cityAnchor;
@@ -47,36 +59,37 @@ public class MainActivity extends Activity implements LocationListener {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        Object retained = getLastNonConfigurationInstance();
+        session = retained instanceof TripSession ? (TripSession) retained : new TripSession();
         manager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setGravity(Gravity.CENTER_HORIZONTAL);
-        content.setPadding(dp(24), dp(24), dp(24), dp(24));
-        content.setBackgroundColor(Color.rgb(246,243,233));
-        content.addView(label("우리의 여행", 24));
-        content.addView(label("지금 얼마나 빠르게 가고 있을까?", 18));
-        speed = label("—", 88);
-        content.addView(speed);
-        content.addView(label("km/h", 24));
-        content.addView(label("지금 있는 도시", 18));
-        city = label("위치를 기다리고 있어요", 32);
-        content.addView(city);
-        status = label("GPS를 준비하고 있어요", 16);
-        content.addView(status);
-        Button permission = new Button(this);
-        permission.setText("위치 사용 허용");
-        permission.setOnClickListener(v -> requestLocation());
-        content.addView(permission);
-        Button settings = new Button(this);
-        settings.setText("위치 설정 열기");
-        settings.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)));
-        content.addView(settings);
-        content.addView(label("보호자와 함께 설정해요. 화면을 보는 동안만 위치를 사용해요.\n위치와 이동 기록을 앱에 저장하지 않아요.\n도시 이름 조회에는 기기의 위치 서비스와 인터넷이 사용될 수 있어요.", 14));
-        ScrollView scroll = new ScrollView(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(CREAM);
+        pages = new LinearLayout[]{page(R.id.page_trip), page(R.id.page_explore), page(R.id.page_stamps)};
+        buildTripPage(pages[0]);
+        buildExplorePage(pages[1]);
+        buildStampsPage(pages[2]);
+        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
+        for (LinearLayout page : pages) frame.addView(page);
+        scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.addView(content);
-        // Android 15 edge-to-edge: keep all content inside system bars.
-        scroll.setOnApplyWindowInsetsListener((view, insets) -> {
+        scroll.addView(frame);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout navigation = new LinearLayout(this);
+        navigation.setPadding(dp(12), dp(6), dp(12), dp(8));
+        int[] ids = {R.id.nav_trip, R.id.nav_explore, R.id.nav_stamps};
+        int[] titles = {R.string.tab_trip, R.string.tab_explore, R.string.tab_stamps};
+        tabs = new Button[3];
+        for (int i = 0; i < tabs.length; i++) {
+            final int tab = i;
+            tabs[i] = button(ids[i], titles[i], false);
+            tabs[i].setOnClickListener(view -> selectTab(tab));
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -2, 1);
+            params.setMargins(dp(3), 0, dp(3), 0);
+            navigation.addView(tabs[i], params);
+        }
+        root.addView(navigation);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
             if (Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars());
                 view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
@@ -86,16 +99,221 @@ public class MainActivity extends Activity implements LocationListener {
             }
             return insets;
         });
-        setContentView(scroll);
+        setContentView(root);
+        renderCard();
+        renderStamps();
+        selectTab(session.selectedTab);
     }
 
+    @Override public Object onRetainNonConfigurationInstance() { return session; }
+
+    private LinearLayout page(int id) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setId(id);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(20), dp(12), dp(20), dp(20));
+        layout.setLayoutParams(new android.widget.FrameLayout.LayoutParams(-1, -2));
+        return layout;
+    }
+    private LinearLayout card(int background) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(18), dp(8), dp(18), dp(14));
+        layout.setBackground(rounded(background));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(12), 0, dp(6));
+        layout.setLayoutParams(params);
+        return layout;
+    }
+    private android.graphics.drawable.GradientDrawable rounded(int color) {
+        android.graphics.drawable.GradientDrawable drawable = new android.graphics.drawable.GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(dp(24));
+        return drawable;
+    }
+    private void buildTripPage(LinearLayout page) {
+        page.addView(label(R.string.trip_title, 26));
+        page.addView(label(R.string.trip_subtitle, 16));
+        LinearLayout gauge = card(Color.WHITE);
+        gauge.addView(label(R.string.speed_label, 17));
+        speed = label("—", 84);
+        speed.setId(R.id.gps_speed);
+        speed.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+        gauge.addView(speed);
+        gauge.addView(label(R.string.speed_unit, 22));
+        page.addView(gauge);
+        LinearLayout cityCard = card(Color.rgb(225, 236, 221));
+        cityCard.addView(label(R.string.city_label, 16));
+        city = label("위치를 기다리고 있어요", 30);
+        city.setId(R.id.gps_city);
+        cityCard.addView(city);
+        page.addView(cityCard);
+        status = label("GPS를 준비하고 있어요", 15);
+        page.addView(status);
+        LinearLayout invitation = card(YELLOW);
+        invitation.addView(label(R.string.explore_title, 24));
+        invitation.addView(label(R.string.explore_intro, 17));
+        Button explore = button(View.NO_ID, R.string.explore_open, true);
+        explore.setOnClickListener(view -> selectTab(1));
+        invitation.addView(explore);
+        page.addView(invitation);
+        Button stamps = button(View.NO_ID, R.string.stamps_open, false);
+        stamps.setOnClickListener(view -> selectTab(2));
+        page.addView(stamps);
+        tripStampSummary = label("", 16);
+        page.addView(tripStampSummary);
+        LinearLayout settings = card(Color.WHITE);
+        settings.addView(label(R.string.settings_title, 18));
+        Button permission = button(R.id.location_allow, R.string.location_allow, false);
+        permission.setOnClickListener(v -> requestLocation());
+        settings.addView(permission);
+        Button locationSettings = button(View.NO_ID, R.string.location_settings, false);
+        locationSettings.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)));
+        settings.addView(locationSettings);
+        settings.addView(label(R.string.location_privacy, 14));
+        page.addView(settings);
+    }
+    private void buildExplorePage(LinearLayout page) {
+        page.addView(label(R.string.explore_title, 28));
+        page.addView(label(R.string.explore_intro, 17));
+        LinearLayout mission = card(Color.WHITE);
+        illustration = new SceneryView(this);
+        mission.addView(illustration, new LinearLayout.LayoutParams(-1, dp(170)));
+        cardPosition = label("", 14);
+        mission.addView(cardPosition);
+        cardTitle = label("", 26);
+        cardTitle.setId(R.id.card_title);
+        mission.addView(cardTitle);
+        cardQuestion = label("", 20);
+        mission.addView(cardQuestion);
+        cardFact = label("", 17);
+        mission.addView(cardFact);
+        foundButton = button(R.id.card_found, R.string.found_button, true);
+        foundButton.setOnClickListener(view -> {
+            session.markFound();
+            renderCard();
+            discoveries.announceForAccessibility(discoveries.getText());
+        });
+        mission.addView(foundButton);
+        Button next = button(R.id.card_next, R.string.next_card, false);
+        next.setOnClickListener(view -> {
+            session.nextCard();
+            renderCard();
+            cardTitle.announceForAccessibility(cardTitle.getText());
+        });
+        mission.addView(next);
+        page.addView(mission);
+        discoveries = label("", 17);
+        discoveries.setId(R.id.discovery_summary);
+        page.addView(discoveries);
+        page.addView(label(R.string.explore_footer, 14));
+    }
+    private void buildStampsPage(LinearLayout page) {
+        page.addView(label(R.string.stamps_title, 28));
+        page.addView(label(R.string.stamps_intro, 17));
+        stampSummary = label("", 20);
+        page.addView(stampSummary);
+        stampList = new LinearLayout(this);
+        stampList.setId(R.id.stamp_list);
+        stampList.setOrientation(LinearLayout.VERTICAL);
+        page.addView(stampList);
+        page.addView(label(R.string.stamps_explanation, 15));
+        page.addView(label(R.string.session_privacy, 14));
+        Button reset = button(R.id.new_journey, R.string.new_journey, false);
+        reset.setOnClickListener(view -> new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.reset_title).setMessage(R.string.reset_message)
+                .setNegativeButton(R.string.reset_cancel, null)
+                .setPositiveButton(R.string.reset_confirm, (dialog, which) -> {
+                    session.resetJourney();
+                    // Discard in-flight pre-reset geocoding before allowing a new confirmation.
+                    epoch++;
+                    resolving = false;
+                    cityRequestId++;
+                    cityAnchor = null;
+                    lastCityRequest = 0;
+                    renderCard();
+                    renderStamps();
+                }).show());
+        page.addView(reset);
+    }
+    private void selectTab(int index) {
+        session.selectedTab = index;
+        for (int i = 0; i < tabs.length; i++) {
+            pages[i].setVisibility(i == index ? View.VISIBLE : View.GONE);
+            tabs[i].setSelected(i == index);
+            tabs[i].setBackground(rounded(i == index ? TEAL : Color.WHITE));
+            tabs[i].setTextColor(i == index ? Color.WHITE : INK);
+        }
+        if (Build.VERSION.SDK_INT >= 28) {
+            pages[index].setAccessibilityPaneTitle(tabs[index].getText());
+        }
+        scroll.post(() -> scroll.scrollTo(0, 0));
+    }
+    private void renderCard() {
+        int index = session.cardIndex();
+        int[][] content = {
+            {R.string.card_river_title, R.string.card_river_question, R.string.card_river_fact},
+            {R.string.card_mountain_title, R.string.card_mountain_question, R.string.card_mountain_fact},
+            {R.string.card_bridge_title, R.string.card_bridge_question, R.string.card_bridge_fact},
+            {R.string.card_tunnel_title, R.string.card_tunnel_question, R.string.card_tunnel_fact},
+            {R.string.card_field_title, R.string.card_field_question, R.string.card_field_fact},
+            {R.string.card_city_title, R.string.card_city_question, R.string.card_city_fact}
+        };
+        illustration.setScene(index);
+        cardPosition.setText(getString(R.string.card_position, index + 1, TripSession.CARD_COUNT));
+        cardTitle.setText(content[index][0]);
+        cardQuestion.setText(content[index][1]);
+        cardFact.setText(content[index][2]);
+        foundButton.setEnabled(!session.currentCardFound());
+        foundButton.setAlpha(session.currentCardFound() ? 0.65f : 1f);
+        foundButton.setText(session.currentCardFound() ? R.string.found_already : R.string.found_button);
+        discoveries.setText(getString(R.string.discovery_summary, session.discoveryCount()));
+    }
+    private void renderStamps() {
+        String summary = getString(R.string.stamp_summary, session.stampCount());
+        stampSummary.setText(summary);
+        tripStampSummary.setText(summary);
+        tabs[2].setContentDescription(getString(R.string.tab_stamps) + ", " + summary);
+        stampList.removeAllViews();
+        if (session.stampCount() == 0) {
+            LinearLayout empty = card(Color.WHITE);
+            empty.addView(label(R.string.stamps_empty, 22));
+            stampList.addView(empty);
+            return;
+        }
+        int number = 0;
+        for (TripSession.Stamp stamp : session.stamps()) {
+            LinearLayout tile = card(number % 2 == 0 ? YELLOW : Color.rgb(225, 236, 221));
+            tile.addView(label(getString(R.string.stamp_number, ++number), 15));
+            tile.addView(label(stamp.city, 30));
+            tile.addView(label(R.string.stamp_confirmed, 16));
+            stampList.addView(tile);
+        }
+    }
+    private Button button(int id, int text, boolean primary) {
+        Button button = new Button(this);
+        button.setId(id);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setTextSize(17);
+        button.setMinHeight(dp(52));
+        button.setPadding(dp(12), dp(10), dp(12), dp(10));
+        button.setTextColor(primary ? Color.WHITE : INK);
+        button.setBackgroundTintList(null);
+        button.setBackground(rounded(primary ? TEAL : Color.rgb(234, 231, 219)));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(6), 0, dp(6));
+        button.setLayoutParams(params);
+        return button;
+    }
+    private TextView label(int text, int size) { return label(getString(text), size); }
     private TextView label(String text, int size) {
         TextView view = new TextView(this);
         view.setText(text);
         view.setTextSize(size);
-        view.setTextColor(Color.rgb(23,65,62));
+        view.setTextColor(INK);
         view.setGravity(Gravity.CENTER);
-        view.setPadding(0, dp(12), 0, dp(12));
+        view.setPadding(0, dp(10), 0, dp(10));
         return view;
     }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
@@ -103,11 +321,15 @@ public class MainActivity extends Activity implements LocationListener {
     @Override public void onResume() {
         super.onResume();
         active = true;
+        speed.setText("—");
+        speed.setContentDescription(getString(R.string.speed_unknown));
+        city.setText("위치를 기다리고 있어요");
         startGps();
         handler.post(ticker);
     }
     @Override public void onPause() {
         active = false;
+        session.interruptCityConfirmation();
         epoch++;
         resolving = false;
         cityRequestId++;
@@ -170,7 +392,9 @@ public class MainActivity extends Activity implements LocationListener {
     }
     @Override public void onProviderDisabled(String provider) {
         latest = null;
+        session.interruptCityConfirmation();
         speed.setText("—");
+        speed.setContentDescription(getString(R.string.speed_unknown));
         city.setText("위치를 기다리고 있어요");
         status.setText(R.string.gps_disabled);
     }
@@ -186,8 +410,11 @@ public class MainActivity extends Activity implements LocationListener {
                 latest.hasAccuracy() ? latest.getAccuracy() : Float.POSITIVE_INFINITY,
                 latest.hasSpeedAccuracy(), latest.hasSpeedAccuracy() ? latest.getSpeedAccuracyMetersPerSecond() : 0, age);
         speed.setText(value == null ? "—" : String.valueOf(value));
+        speed.setContentDescription(value == null ? getString(R.string.speed_unknown)
+                : getString(R.string.speed_reading, String.valueOf(value)));
         status.setText(value == null ? "GPS 속도를 확인하고 있어요 · 신호가 약할 수 있어요" : "GPS로 측정한 대략적인 속도예요");
-        if (age > 10_000) {
+        if (age < 0 || age > 10_000) {
+            session.interruptCityConfirmation();
             city.setText("위치를 다시 확인하고 있어요");
             cityAnchor = null;
             lastCityRequest = 0;
@@ -196,7 +423,8 @@ public class MainActivity extends Activity implements LocationListener {
     private void resolveCity(Location location) {
         long now = SystemClock.elapsedRealtime();
         if (resolving || (lastCityRequest > 0 && now - lastCityRequest < 60_000)) return;
-        if (cityAnchor != null && cityAnchor.distanceTo(location) < 1000 && now - lastCityRequest < 300_000) return;
+        if (!session.needsCityConfirmation() && cityAnchor != null
+                && cityAnchor.distanceTo(location) < 1000 && now - lastCityRequest < 300_000) return;
         if (!Geocoder.isPresent()) {
             city.setText("이 기기에서는 도시 조회를 지원하지 않아요");
             return;
@@ -239,22 +467,37 @@ public class MainActivity extends Activity implements LocationListener {
     private void finishCity(int request, int generation, Location anchor, List<Address> addresses) {
         if (!active || generation != epoch || request != cityRequestId || !resolving) return;
         resolving = false;
-        if (latest == null || (SystemClock.elapsedRealtimeNanos() - latest.getElapsedRealtimeNanos()) > 10_000_000_000L) {
+        long age = latest == null ? Long.MAX_VALUE
+                : (SystemClock.elapsedRealtimeNanos() - latest.getElapsedRealtimeNanos());
+        if (age < 0 || age > 10_000_000_000L) {
+            session.interruptCityConfirmation();
             city.setText("위치를 다시 확인하고 있어요");
             return;
         }
         String name = null;
+        String stampKey = null;
         if (addresses != null && !addresses.isEmpty()) {
             Address address = addresses.get(0);
             name = address.getLocality();
             if (name == null || name.trim().isEmpty()) name = address.getSubAdminArea();
+            if (name != null && !name.trim().isEmpty()) {
+                stampKey = String.valueOf(address.getCountryCode()) + "|"
+                        + String.valueOf(address.getAdminArea()) + "|" + name.trim();
+            }
             if (name == null || name.trim().isEmpty()) name = address.getAdminArea();
         }
         if (name == null || name.trim().isEmpty()) {
+            session.interruptCityConfirmation();
             city.setText("도시 이름을 찾지 못했어요 · 연결을 확인해 주세요");
         } else {
             cityAnchor = anchor;
             city.setText(name);
+            if (session.observeCity(stampKey, name, SystemClock.elapsedRealtime())) {
+                renderStamps();
+                if (session.selectedTab == 2) {
+                    stampSummary.announceForAccessibility(getString(R.string.stamp_announcement, name));
+                }
+            }
         }
     }
 }
