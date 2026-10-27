@@ -39,10 +39,14 @@ APK: `app/build/outputs/apk/debug/app-debug.apk` (개발용 서명).
 
 추가 놀이 요소 검토: [docs/playful-learning.md](docs/playful-learning.md).
 
-## 원격 저장소 상태
+## 저장소와 APK 다운로드
 
-GitHub API 접근이 거부되어 원격 저장소 생성·업로드는 아직 수행하지 않았다.
-목표 비공개 저장소: `dskim-tttt/kids-trip-speedometer`. 실제 생성/접근 후 원격 연결이 필요하다.
+GitHub 저장소: https://github.com/dskim-tttt/kids
+
+개발용 APK: [downloads/travel-speedometer-debug.apk](downloads/travel-speedometer-debug.apk).
+GitHub에서 파일을 열고 **Download raw file** 버튼으로 내려받는다. 저장소가 비공개이면 권한이 있는 계정으로 로그인해야 한다.
+Android 8.0 이상에서 설치하며 정확한 위치를 ‘앱 사용 중’ 허용한다. 실제 GPS/도시 표시 확인은 동승자가 수행한다.
+이 APK는 기본 속도·도시 화면만 포함하고, 탐험 카드·여행 도장은 디자인 제안이다.
 
 ## 이번 클라우드 검증 결과
 
@@ -50,6 +54,5 @@ GitHub API 접근이 거부되어 원격 저장소 생성·업로드는 아직 �
 - 속도 변환/정지/누락·부정확·오래된 관측 처리 단위 테스트 3개 통과.
 - Android lint: 오류 0, 경고 0.
 - `scripts/cloud-setup.sh` 재실행 성공. 위치 서비스가 있는 휴대폰에서의 실제 동작은 미검증.
-- 신규 Git 저장소는 클라우드 작업 폴더에만 초기화됨. GitHub 연결과 업로드는 미완료.
 
 화면 디자인 제안: [docs/design.md](docs/design.md). 시안의 탐험·도장 화면은 미구현 확장 제안이다.
