@@ -16,4 +16,12 @@
     <item type="id" name="location_allow" />
     <item type="id" name="compass_dial" />
     <item type="id" name="compass_reading" />
+    <item type="id" name="city_arrival_overlay" />
+    <item type="id" name="arrival_city" />
+    <item type="id" name="arrival_close" />
+    <item type="id" name="arrival_panel" />
+    <item type="id" name="arrival_sparkles" />
+    <item type="id" name="arrival_sound_toggle" />
+    <item type="id" name="arrival_effects_toggle" />
+    <item type="id" name="arrival_preview" />
 </resources>

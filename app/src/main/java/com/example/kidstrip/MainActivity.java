@@ -36,6 +36,8 @@ public class MainActivity extends Activity implements LocationListener {
     private static final int INK = Color.rgb(23, 65, 62);
     private static final int YELLOW = Color.rgb(255, 206, 105);
     private TripSession session;
+    private CityArrivalOverlay cityArrivalOverlay;
+    private android.content.SharedPreferences arrivalPreferences;
     private LinearLayout[] pages;
     private Button[] tabs;
     private Button foundButton;
@@ -65,6 +67,9 @@ public class MainActivity extends Activity implements LocationListener {
         super.onCreate(state);
         Object retained = getLastNonConfigurationInstance();
         session = retained instanceof TripSession ? (TripSession) retained : new TripSession();
+        arrivalPreferences = getSharedPreferences("arrival_preferences", MODE_PRIVATE);
+        session.arrivalSoundEnabled = arrivalPreferences.getBoolean("sound_enabled", true);
+        session.arrivalEffectsEnabled = arrivalPreferences.getBoolean("effects_enabled", true);
         manager = (LocationManager) getSystemService(LOCATION_SERVICE);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -108,7 +113,10 @@ public class MainActivity extends Activity implements LocationListener {
             navigation.addView(tabs[i], params);
         }
         root.addView(navigation);
-        root.setOnApplyWindowInsetsListener((view, insets) -> {
+        android.widget.FrameLayout stage = new android.widget.FrameLayout(this);
+        stage.addView(root, new android.widget.FrameLayout.LayoutParams(-1, -1));
+        cityArrivalOverlay = new CityArrivalOverlay(this, stage, root);
+        stage.setOnApplyWindowInsetsListener((view, insets) -> {
             if (Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars());
                 view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
@@ -118,7 +126,7 @@ public class MainActivity extends Activity implements LocationListener {
             }
             return insets;
         });
-        setContentView(root);
+        setContentView(stage);
         renderCard();
         renderStamps();
         selectTab(session.selectedTab);
@@ -212,6 +220,33 @@ public class MainActivity extends Activity implements LocationListener {
         locationSettings.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)));
         settings.addView(locationSettings);
         settings.addView(label(R.string.location_privacy, 14));
+        android.widget.Switch sound = new android.widget.Switch(this);
+        sound.setId(R.id.arrival_sound_toggle);
+        sound.setText(R.string.arrival_sound_setting);
+        sound.setTextSize(17);
+        sound.setMinHeight(dp(52));
+        sound.setChecked(session.arrivalSoundEnabled);
+        sound.setOnCheckedChangeListener((button, checked) -> {
+            session.arrivalSoundEnabled = checked;
+            arrivalPreferences.edit().putBoolean("sound_enabled", checked).apply();
+        });
+        settings.addView(sound, new LinearLayout.LayoutParams(-1, -2));
+        android.widget.Switch effects = new android.widget.Switch(this);
+        effects.setId(R.id.arrival_effects_toggle);
+        effects.setText(R.string.arrival_effects_setting);
+        effects.setTextSize(17);
+        effects.setMinHeight(dp(52));
+        effects.setChecked(session.arrivalEffectsEnabled);
+        effects.setOnCheckedChangeListener((button, checked) -> {
+            session.arrivalEffectsEnabled = checked;
+            arrivalPreferences.edit().putBoolean("effects_enabled", checked).apply();
+        });
+        settings.addView(effects, new LinearLayout.LayoutParams(-1, -2));
+        settings.addView(label(R.string.arrival_settings_note, 14));
+        Button preview = button(R.id.arrival_preview, R.string.arrival_preview_button, false);
+        preview.setOnClickListener(view -> cityArrivalOverlay.show(getString(R.string.arrival_preview_city),
+                true, session.arrivalSoundEnabled, session.arrivalEffectsEnabled));
+        settings.addView(preview);
         page.addView(settings);
     }
     private void buildExplorePage(LinearLayout page) {
@@ -265,6 +300,7 @@ public class MainActivity extends Activity implements LocationListener {
                 .setTitle(R.string.reset_title).setMessage(R.string.reset_message)
                 .setNegativeButton(R.string.reset_cancel, null)
                 .setPositiveButton(R.string.reset_confirm, (dialog, which) -> {
+                    cityArrivalOverlay.hide();
                     session.resetJourney();
                     // Discard in-flight pre-reset geocoding before allowing a new confirmation.
                     epoch++;
@@ -327,6 +363,11 @@ public class MainActivity extends Activity implements LocationListener {
             LinearLayout tile = card(number % 2 == 0 ? YELLOW : Color.rgb(225, 236, 221));
             tile.addView(label(getString(R.string.stamp_number, ++number), 15));
             tile.addView(label(stamp.city, 30));
+            CityBadgeView badge = new CityBadgeView(this);
+            badge.setCity(stamp.city);
+            LinearLayout.LayoutParams badgeSize = new LinearLayout.LayoutParams(dp(76), dp(76));
+            badgeSize.gravity = Gravity.CENTER_HORIZONTAL;
+            tile.addView(badge, badgeSize);
             tile.addView(label(R.string.stamp_confirmed, 16));
             stampList.addView(tile);
         }
@@ -371,6 +412,7 @@ public class MainActivity extends Activity implements LocationListener {
     }
     @Override public void onPause() {
         active = false;
+        cityArrivalOverlay.hide();
         phoneCompass.stop();
         session.interruptCityConfirmation();
         epoch++;
@@ -537,9 +579,7 @@ public class MainActivity extends Activity implements LocationListener {
             city.setText(name);
             if (session.observeCity(stampKey, name, SystemClock.elapsedRealtime())) {
                 renderStamps();
-                if (session.selectedTab == 2) {
-                    stampSummary.announceForAccessibility(getString(R.string.stamp_announcement, name));
-                }
+                cityArrivalOverlay.show(name, false, session.arrivalSoundEnabled, session.arrivalEffectsEnabled);
             }
         }
     }

@@ -89,4 +89,13 @@ public class TripSessionTest {
         old.stamps().clear();
         assertEquals(1, old.stampCount());
     }
+    @Test public void newJourneyPreservesTheChosenSoundAndMotionSettings() {
+        TripSession session = new TripSession();
+        session.arrivalSoundEnabled = false;
+        session.arrivalEffectsEnabled = false;
+        session.resetJourney();
+        assertFalse(session.arrivalSoundEnabled);
+        assertFalse(session.arrivalEffectsEnabled);
+        assertTrue(new TripSession().arrivalSoundEnabled);
+    }
 }

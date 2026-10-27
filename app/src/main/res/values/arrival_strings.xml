@@ -1,0 +1,13 @@
+<resources>
+    <string name="arrival_title">새로운 도시 발견!</string>
+    <string name="arrival_subtitle">여행 도장을 모았어요!</string>
+    <string name="arrival_close">계속 여행하기</string>
+    <string name="arrival_preview_title">도시 환영 효과 · 미리보기</string>
+    <string name="arrival_preview_note">미리보기는 도장을 추가하지 않아요.</string>
+    <string name="arrival_preview_announcement">미리보기: %1$s 도시 배지</string>
+    <string name="arrival_preview_button">도시 환영 효과 미리보기</string>
+    <string name="arrival_preview_city">수원시</string>
+    <string name="arrival_sound_setting">도시 알림 소리</string>
+    <string name="arrival_effects_setting">화면 움직임 효과</string>
+    <string name="arrival_settings_note">새 도시 도장이 확정되면 도시 이름 배지가 나타나요. 소리는 휴대폰의 무음·방해금지·볼륨 설정을 따라요. 소리·움직임 선택만 이 기기에 저장해요.</string>
+</resources>

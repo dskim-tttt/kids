@@ -100,4 +100,49 @@ public class MainActivityTest {
         assertEquals(activity.getString(R.string.compass_waiting), reading.getText().toString());
         controller.resume();
     }
+    @Test public void arrivalPreviewIsClearlyMarkedAndDoesNotAwardAStamp() {
+        click(R.id.arrival_preview);
+        assertEquals(View.VISIBLE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+        android.widget.LinearLayout panel = activity.findViewById(R.id.arrival_panel);
+        assertEquals(activity.getString(R.string.arrival_preview_title), ((TextView) panel.getChildAt(0)).getText().toString());
+        assertEquals(0, session().stampCount());
+        click(R.id.arrival_close);
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+        assertEquals(0, session().stampCount());
+    }
+    @Test public void arrivalSettingsSurviveRotationAndCanDisableMotion() {
+        click(R.id.arrival_sound_toggle);
+        click(R.id.arrival_effects_toggle);
+        assertFalse(session().arrivalSoundEnabled);
+        assertFalse(session().arrivalEffectsEnabled);
+        controller.recreate();
+        activity = controller.get();
+        assertFalse(((android.widget.Switch) activity.findViewById(R.id.arrival_sound_toggle)).isChecked());
+        assertFalse(((android.widget.Switch) activity.findViewById(R.id.arrival_effects_toggle)).isChecked());
+        click(R.id.arrival_preview);
+        assertEquals(1f, activity.findViewById(R.id.arrival_panel).getAlpha(), 0.001f);
+        assertEquals(View.GONE, activity.findViewById(R.id.arrival_sparkles).getVisibility());
+    }
+    @Test public void previewDismissesAutomaticallyAndDoesNotReplayAfterResume() {
+        click(R.id.arrival_preview);
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofSeconds(5));
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+        click(R.id.arrival_preview);
+        controller.pause().resume();
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+    }
+    @Test public void preferencesRemainAfterFreshActivityButTravelHistoryDoesNot() {
+        click(R.id.arrival_sound_toggle);
+        click(R.id.arrival_effects_toggle);
+        session().markFound();
+        session().observeCity("A", "수원시", 0);
+        session().observeCity("A", "수원시", 60_000);
+        controller.pause().stop().destroy();
+        controller = Robolectric.buildActivity(MainActivity.class).setup();
+        activity = controller.get();
+        assertFalse(session().arrivalSoundEnabled);
+        assertFalse(session().arrivalEffectsEnabled);
+        assertEquals(0, session().stampCount());
+        assertEquals(0, session().discoveryCount());
+    }
 }

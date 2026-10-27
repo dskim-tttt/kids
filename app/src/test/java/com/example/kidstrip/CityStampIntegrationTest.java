@@ -7,6 +7,7 @@ import android.location.LocationManager;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.widget.LinearLayout;
+import android.view.View;
 import android.widget.TextView;
 import java.time.Duration;
 import java.util.Collections;
@@ -76,6 +77,9 @@ public class CityStampIntegrationTest {
         ShadowSystemClock.advanceBy(Duration.ofSeconds(61));
         fix();
         assertEquals(1, session().stampCount());
+        assertEquals(View.VISIBLE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+        assertEquals("수원시", ((TextView) activity.findViewById(R.id.arrival_city)).getText().toString());
+        activity.findViewById(R.id.arrival_close).performClick();
         activity.findViewById(R.id.nav_stamps).performClick();
         LinearLayout list = activity.findViewById(R.id.stamp_list);
         LinearLayout first = (LinearLayout) list.getChildAt(0);
@@ -84,6 +88,7 @@ public class CityStampIntegrationTest {
         ShadowSystemClock.advanceBy(Duration.ofMinutes(5));
         fix();
         assertEquals(1, session().stampCount());
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
     }
     @Test public void callbackFromBeforePauseCannotCreateAPendingCityOrStamp() {
         city("수원시");
@@ -106,5 +111,26 @@ public class CityStampIntegrationTest {
         assertEquals("경기도", ((TextView) activity.findViewById(R.id.gps_city)).getText().toString());
         assertEquals(0, session().stampCount());
         assertFalse(session().needsCityConfirmation());
+    }
+    @Test public void anotherConfirmedCityGetsItsOwnBadgeAndBackgroundingClosesIt() {
+        city("수원시"); fix();
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(61)); fix();
+        activity.findViewById(R.id.arrival_close).performClick();
+        city("용인시");
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(5)); fix();
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(61)); fix();
+        assertEquals(2, session().stampCount());
+        assertEquals("용인시", ((TextView) activity.findViewById(R.id.arrival_city)).getText().toString());
+        assertEquals(View.VISIBLE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+        controller.pause().resume();
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
+    }
+    @Test public void failedLookupDoesNotShowArrivalOrGiveAStamp() {
+        city("수원시"); fix();
+        FakeGeocoder.response = Collections.emptyList();
+        ShadowSystemClock.advanceBy(Duration.ofSeconds(61)); fix();
+        assertEquals(0, session().stampCount());
+        assertEquals(View.GONE, activity.findViewById(R.id.city_arrival_overlay).getVisibility());
     }
 }

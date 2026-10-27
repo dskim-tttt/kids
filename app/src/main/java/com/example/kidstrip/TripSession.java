@@ -21,6 +21,8 @@ public final class TripSession {
     private long candidateSince, lastObservation;
     private int card;
     public int selectedTab;
+    public boolean arrivalSoundEnabled = true;
+    public boolean arrivalEffectsEnabled = true;
 
     public int cardIndex() { return card; }
     public boolean currentCardFound() { return discoveries.contains(card); }
