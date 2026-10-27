@@ -44,6 +44,9 @@ public class MainActivity extends Activity implements LocationListener {
     private TextView cardTitle, cardQuestion, cardFact, cardPosition, discoveries, stampSummary, tripStampSummary;
     private LinearLayout stampList;
     private LocationManager manager;
+    private PhoneCompass phoneCompass;
+    private CompassView compassDial;
+    private TextView compassReading;
     private TextView speed, city, status;
     private Location latest, cityAnchor;
     private boolean active, listening, resolving;
@@ -53,6 +56,7 @@ public class MainActivity extends Activity implements LocationListener {
         @Override public void run() {
             if (!active) return;
             updateSpeed();
+            phoneCompass.expireStaleHeading();
             handler.postDelayed(this, 1000);
         }
     };
@@ -69,6 +73,21 @@ public class MainActivity extends Activity implements LocationListener {
         buildTripPage(pages[0]);
         buildExplorePage(pages[1]);
         buildStampsPage(pages[2]);
+        phoneCompass = new PhoneCompass((android.hardware.SensorManager) getSystemService(SENSOR_SERVICE),
+                () -> getWindowManager().getDefaultDisplay().getRotation(), new PhoneCompass.Callback() {
+            @Override public void onHeading(float heading) {
+                compassDial.setHeading(heading);
+                String direction = getResources().getStringArray(R.array.compass_directions)[CompassMath.directionIndex(heading)];
+                int degrees = CompassMath.roundedDegrees(heading);
+                compassReading.setText(getString(R.string.compass_reading, direction, degrees));
+                compassReading.setContentDescription(getString(R.string.compass_accessible, direction, degrees));
+            }
+            @Override public void onUnavailable(int message) {
+                compassDial.setHeading(Float.NaN);
+                compassReading.setText(message);
+                compassReading.setContentDescription(getString(message));
+            }
+        });
         android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
         for (LinearLayout page : pages) frame.addView(page);
         scroll = new ScrollView(this);
@@ -135,12 +154,34 @@ public class MainActivity extends Activity implements LocationListener {
         page.addView(label(R.string.trip_title, 26));
         page.addView(label(R.string.trip_subtitle, 16));
         LinearLayout gauge = card(Color.WHITE);
-        gauge.addView(label(R.string.speed_label, 17));
+        gauge.setPadding(dp(12), dp(8), dp(12), dp(14));
+        LinearLayout instruments = new LinearLayout(this);
+        instruments.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout speedColumn = new LinearLayout(this);
+        speedColumn.setOrientation(LinearLayout.VERTICAL);
+        speedColumn.setGravity(Gravity.CENTER);
+        speedColumn.addView(label(R.string.speed_label, 16));
         speed = label("—", 84);
         speed.setId(R.id.gps_speed);
+        speed.setMaxLines(1);
+        speed.setAutoSizeTextTypeUniformWithConfiguration(36, 84, 2, android.util.TypedValue.COMPLEX_UNIT_SP);
         speed.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
-        gauge.addView(speed);
-        gauge.addView(label(R.string.speed_unit, 22));
+        speedColumn.addView(speed, new LinearLayout.LayoutParams(-1, dp(120)));
+        speedColumn.addView(label(R.string.speed_unit, 22));
+        instruments.addView(speedColumn, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout compassColumn = new LinearLayout(this);
+        compassColumn.setOrientation(LinearLayout.VERTICAL);
+        compassColumn.setGravity(Gravity.CENTER);
+        compassColumn.addView(label(R.string.compass_title, 15));
+        compassDial = new CompassView(this);
+        compassDial.setId(R.id.compass_dial);
+        compassColumn.addView(compassDial, new LinearLayout.LayoutParams(dp(104), dp(104)));
+        compassReading = label(R.string.compass_waiting, 16);
+        compassReading.setId(R.id.compass_reading);
+        compassColumn.addView(compassReading);
+        instruments.addView(compassColumn, new LinearLayout.LayoutParams(dp(120), -2));
+        gauge.addView(instruments);
+        gauge.addView(label(R.string.compass_note, 13));
         page.addView(gauge);
         LinearLayout cityCard = card(Color.rgb(225, 236, 221));
         cityCard.addView(label(R.string.city_label, 16));
@@ -325,10 +366,12 @@ public class MainActivity extends Activity implements LocationListener {
         speed.setContentDescription(getString(R.string.speed_unknown));
         city.setText("위치를 기다리고 있어요");
         startGps();
+        phoneCompass.start();
         handler.post(ticker);
     }
     @Override public void onPause() {
         active = false;
+        phoneCompass.stop();
         session.interruptCityConfirmation();
         epoch++;
         resolving = false;

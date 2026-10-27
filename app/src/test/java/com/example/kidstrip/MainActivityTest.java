@@ -81,4 +81,23 @@ public class MainActivityTest {
         assertEquals(1, session().cardIndex());
         assertEquals(View.VISIBLE, activity.findViewById(R.id.page_explore).getVisibility());
     }
+    @Test public void compassReadoutUsesSensorsAndUnregistersWhenActivityPauses() {
+        android.hardware.SensorManager manager = (android.hardware.SensorManager) activity.getSystemService(android.content.Context.SENSOR_SERVICE);
+        org.robolectric.shadows.ShadowSensorManager sensors = shadowOf(manager);
+        android.hardware.Sensor vector = org.robolectric.shadows.ShadowSensor.newInstance(android.hardware.Sensor.TYPE_ROTATION_VECTOR);
+        sensors.addSensor(vector);
+        controller.pause().resume();
+        assertFalse(sensors.getListeners().isEmpty());
+        android.hardware.SensorEvent event = org.robolectric.shadows.ShadowSensorManager.createSensorEvent(4);
+        event.sensor = vector;
+        event.accuracy = 3;
+        event.values[3] = 1;
+        sensors.sendSensorEventToListeners(event, vector);
+        TextView reading = activity.findViewById(R.id.compass_reading);
+        assertEquals(activity.getString(R.string.compass_reading, "북", 0), reading.getText().toString());
+        controller.pause();
+        assertTrue(sensors.getListeners().isEmpty());
+        assertEquals(activity.getString(R.string.compass_waiting), reading.getText().toString());
+        controller.resume();
+    }
 }

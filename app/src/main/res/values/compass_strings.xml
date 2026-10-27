@@ -1,0 +1,17 @@
+<resources>
+    <string name="compass_title">휴대폰 방향</string>
+    <string name="compass_reading">%1$s %2$d°</string>
+    <string name="compass_accessible">화면 위쪽 방향: %1$s, 자북 기준 %2$d도</string>
+    <string name="compass_waiting">방향 확인 중</string>
+    <string name="compass_unsupported">나침반 센서 없음</string>
+    <string name="compass_calibrate">8자 모양으로\n천천히 움직여 주세요</string>
+    <string name="compass_flatten">휴대폰을 조금\n평평하게 놓아 주세요</string>
+    <string name="compass_note">화면 위쪽 방향 · 자북 기준\n차 안의 금속·자석 때문에 오차가 생길 수 있어요.</string>
+    <string-array name="compass_directions">
+        <item>북</item><item>북동</item><item>동</item><item>남동</item>
+        <item>남</item><item>남서</item><item>서</item><item>북서</item>
+    </string-array>
+    <string-array name="compass_cardinals">
+        <item>북</item><item>동</item><item>남</item><item>서</item>
+    </string-array>
+</resources>

@@ -14,4 +14,6 @@
     <item type="id" name="gps_speed" />
     <item type="id" name="gps_city" />
     <item type="id" name="location_allow" />
+    <item type="id" name="compass_dial" />
+    <item type="id" name="compass_reading" />
 </resources>
