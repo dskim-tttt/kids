@@ -402,6 +402,7 @@ public class MainActivity extends Activity implements LocationListener {
 
     @Override public void onResume() {
         super.onResume();
+        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         active = true;
         speed.setText("—");
         speed.setContentDescription(getString(R.string.speed_unknown));
@@ -411,6 +412,7 @@ public class MainActivity extends Activity implements LocationListener {
         handler.post(ticker);
     }
     @Override public void onPause() {
+        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         active = false;
         cityArrivalOverlay.hide();
         phoneCompass.stop();
