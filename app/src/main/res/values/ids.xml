@@ -24,4 +24,13 @@
     <item type="id" name="arrival_sound_toggle" />
     <item type="id" name="arrival_effects_toggle" />
     <item type="id" name="arrival_preview" />
+    <item type="id" name="distance_odo" />
+    <item type="id" name="distance_trip" />
+    <item type="id" name="distance_launch" />
+    <item type="id" name="reset_trip" />
+    <item type="id" name="gps_direction_toggle" />
+    <item type="id" name="sound_samples" />
+    <item type="id" name="sound_sample_preview" />
+    <item type="id" name="audio_status" />
+    <item type="id" name="storage_status" />
 </resources>

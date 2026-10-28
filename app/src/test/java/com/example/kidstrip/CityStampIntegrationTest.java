@@ -43,7 +43,7 @@ public class CityStampIntegrationTest {
     }
     private ActivityController<MainActivity> controller;
     private MainActivity activity;
-    private TripSession session() { return (TripSession) activity.onRetainNonConfigurationInstance(); }
+    private TripSession session() { return activity.tripSession(); }
     @Before public void start() {
         FakeGeocoder.response = Collections.emptyList();
         FakeGeocoder.defer = false;
@@ -82,7 +82,7 @@ public class CityStampIntegrationTest {
         activity.findViewById(R.id.arrival_close).performClick();
         activity.findViewById(R.id.nav_stamps).performClick();
         LinearLayout list = activity.findViewById(R.id.stamp_list);
-        LinearLayout first = (LinearLayout) list.getChildAt(0);
+        LinearLayout first = (LinearLayout) ((LinearLayout) list.getChildAt(0)).getChildAt(0);
         assertEquals("수원시", ((TextView) first.getChildAt(1)).getText().toString());
         assertEquals("36", ((TextView) activity.findViewById(R.id.gps_speed)).getText().toString());
         ShadowSystemClock.advanceBy(Duration.ofMinutes(5));
@@ -139,7 +139,7 @@ public class CityStampIntegrationTest {
         shadowOf(notifications).setNotificationPolicyAccessGranted(true);
         notifications.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_ALL);
         audio.setRingerMode(android.media.AudioManager.RINGER_MODE_NORMAL);
-        audio.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, 5, 0);
+        audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 5, 0);
         java.util.concurrent.atomic.AtomicInteger sounds = new java.util.concurrent.atomic.AtomicInteger();
         org.robolectric.shadows.ShadowMediaPlayer.setCreateListener((player, shadow) -> sounds.incrementAndGet());
         org.robolectric.shadows.ShadowMediaPlayer.setMediaInfoProvider(source -> new org.robolectric.shadows.ShadowMediaPlayer.MediaInfo(750, 0));

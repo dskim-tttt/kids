@@ -3,46 +3,58 @@ package com.example.kidstrip;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.Path;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.view.View;
 
-/** App-owned city-name badge, not a municipality's official emblem. */
+/** Verified bundled logo when available; otherwise a neutral, visibly labelled logo slot. */
 public final class CityBadgeView extends View {
-    private static final int[] COLORS = {0xff246B64, 0xff326A91, 0xff865B8D, 0xff9A603D, 0xff53783D, 0xff7C6150};
-    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path landscape = new Path();
-    private String initials = "";
-    private int color = COLORS[0];
+    private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final RectF destination = new RectF();
+    private final CityLogoCatalog catalog;
+    private String initials = "?";
+    private CityLogoCatalog.Logo logo;
+    private CityLogoCatalog.Entry entry;
     public CityBadgeView(Context context) {
         super(context);
+        catalog = CityLogoCatalog.get(context);
         paint.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
         paint.setTextAlign(Paint.Align.CENTER);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
     }
-    public void setCity(String city) {
+    /** Convenience for a preview or unknown key: names alone never select an official logo. */
+    public void setCity(String city) { setCity(null, city); }
+    public void setCity(String key, String city) {
         String name = city == null ? "" : city.trim();
-        initials = name.substring(0, name.offsetByCodePoints(0, Math.min(2, name.codePointCount(0, name.length()))));
-        color = COLORS[Math.floorMod(name.hashCode(), COLORS.length)];
+        initials = name.isEmpty() ? "?" : name.substring(0,
+                name.offsetByCodePoints(0, Math.min(2, name.codePointCount(0, name.length()))));
+        entry = catalog.entryFor(key);
+        logo = catalog.logoFor(key);
         invalidate();
     }
+    public boolean hasLogo() { return logo != null; }
+    public boolean isOfficialLogo() { return hasLogo() && "official".equals(entry.sourceKind); }
+    public boolean isOriginalBadge() { return hasLogo() && "original".equals(entry.sourceKind); }
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         float side = Math.min(getWidth(), getHeight());
-        canvas.save();
-        canvas.translate((getWidth() - side) / 2, (getHeight() - side) / 2);
-        canvas.scale(side / 240f, side / 240f);
-        paint.setColor(0xffFFCE69); canvas.drawCircle(120, 120, 115, paint);
-        paint.setColor(color); canvas.drawCircle(120, 120, 107, paint);
-        paint.setColor(0xffF6F3E9); canvas.drawCircle(120, 120, 97, paint);
-        paint.setColor(0xffFFCE69); canvas.drawCircle(170, 67, 17, paint);
-        landscape.reset(); landscape.moveTo(43, 163); landscape.lineTo(84, 119);
-        landscape.lineTo(119, 157); landscape.lineTo(153, 126); landscape.lineTo(196, 165);
-        landscape.quadTo(121, 218, 43, 163); landscape.close();
-        paint.setColor(0xffA3BC78); canvas.drawPath(landscape, paint);
-        paint.setColor(color); paint.setTextSize(58);
-        canvas.drawText(initials, 120, 116, paint);
-        paint.setColor(0xffFFFDF4); canvas.drawCircle(120, 177, 5, paint);
-        canvas.restore();
+        float left = (getWidth() - side) / 2f, top = (getHeight() - side) / 2f;
+        if (logo != null) {
+            // Keep the complete official mark and its proportions; do not crop it into a circle.
+            float available = side * (isOriginalBadge() ? 1f : 0.88f);
+            float scale = Math.min(available / logo.source.width(), available / logo.source.height());
+            float width = logo.source.width() * scale, height = logo.source.height() * scale;
+            destination.set(left + (side - width) / 2f, top + (side - height) / 2f,
+                    left + (side + width) / 2f, top + (side + height) / 2f);
+            paint.setAlpha(255);
+            canvas.drawBitmap(logo.bitmap, logo.source, destination, paint);
+            return;
+        }
+        float cx = left + side / 2, cy = top + side / 2;
+        paint.setColor(0xffECEFEA);
+        canvas.drawCircle(cx, cy, side * 0.46f, paint);
+        paint.setColor(0xff718078);
+        paint.setTextSize(side * 0.24f);
+        canvas.drawText(initials, cx, cy - (paint.ascent() + paint.descent()) / 2f, paint);
     }
 }

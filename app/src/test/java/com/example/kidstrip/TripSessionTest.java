@@ -51,6 +51,9 @@ public class TripSessionTest {
         assertEquals(2, s.stampCount());
         assertEquals("수원", s.stamps().get(0).city);
         assertEquals("용인", s.stamps().get(1).city);
+        assertEquals("A", s.stamps().get(0).key);
+        assertEquals(2, s.stamps().get(0).visits);
+        assertEquals(1, s.stamps().get(1).visits);
     }
     @Test public void sameNamedCitiesInDifferentRegionsRemainDistinct() {
         TripSession s = new TripSession();
@@ -128,5 +131,24 @@ public class TripSessionTest {
         assertFalse(s.observeCity("A", "수원", 120_000));
         assertTrue(s.observeCity("A", "수원", 180_000));
         assertEquals(1, s.stampCount());
+    }
+    @Test public void restoredSameCityDoesNotIncreaseVisitsUntilAConfirmedReturn() {
+        TripSession s = new TripSession();
+        s.restoreStamp("A", "수원", 7);
+        s.restoreConfirmedCity("A");
+        assertFalse(s.observeCity("A", "수원", 0));
+        assertEquals(7, s.stamps().get(0).visits);
+        s.observeCity("B", "용인", 60_000);
+        assertTrue(s.observeCity("B", "용인", 120_000));
+        s.observeCity("A", "수원", 180_000);
+        assertTrue(s.observeCity("A", "수원", 240_000));
+        assertEquals(8, s.stamps().get(0).visits);
+    }
+    @Test public void visitCounterCannotOverflowIntoNegativeNumbers() {
+        TripSession s = new TripSession();
+        s.restoreStamp("A", "수원", Integer.MAX_VALUE);
+        s.observeCity("A", "수원", 0);
+        assertTrue(s.observeCity("A", "수원", 60_000));
+        assertEquals(Integer.MAX_VALUE, s.stamps().get(0).visits);
     }
 }

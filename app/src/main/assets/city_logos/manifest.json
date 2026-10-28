@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "key": "KR|서울특별시|서울특별시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        0,
+        0,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|경기도|수원시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        1,
+        0,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|경기도|용인시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        2,
+        0,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|경기도|성남시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        3,
+        0,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|인천광역시|인천광역시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        0,
+        1,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|강원특별자치도|춘천시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        1,
+        1,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|강원특별자치도|강릉시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        2,
+        1,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|강원특별자치도|원주시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        3,
+        1,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|대전광역시|대전광역시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        0,
+        2,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|세종특별자치시|세종특별자치시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        1,
+        2,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|충청북도|청주시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        2,
+        2,
+        4,
+        3
+      ]
+    },
+    {
+      "key": "KR|충청남도|천안시",
+      "asset": "city_logos/original_travel_sheet.png",
+      "sourceKind": "original",
+      "license": "Original illustrative artwork generated for Kids Trip Speedometer. Not an official municipal emblem or exact architectural depiction.",
+      "cell": [
+        3,
+        2,
+        4,
+        3
+      ]
+    }
+  ]
+}

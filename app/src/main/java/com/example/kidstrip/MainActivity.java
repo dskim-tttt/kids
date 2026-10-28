@@ -36,6 +36,19 @@ public class MainActivity extends Activity implements LocationListener {
     private static final int INK = Color.rgb(23, 65, 62);
     private static final int YELLOW = Color.rgb(255, 206, 105);
     private TripSession session;
+    private TripStore tripStore;
+    private TravelTracker travel;
+    private ArrivalSound sampleSound;
+    private boolean useGpsDirection = true;
+    private String soundId;
+    private int lastAudioFailure;
+    private boolean soundAttemptActive, lastPlaybackFromOverlay;
+    private TextView directionTitle, directionNote, odoText, tripText, launchText, storageStatus, audioStatus;
+    private static final class RetainedState {
+        final TripSession session;
+        final TravelTracker travel;
+        RetainedState(TripSession session, TravelTracker travel) { this.session = session; this.travel = travel; }
+    }
     private CityArrivalOverlay cityArrivalOverlay;
     private android.content.SharedPreferences arrivalPreferences;
     private LinearLayout[] pages;
@@ -58,7 +71,10 @@ public class MainActivity extends Activity implements LocationListener {
         @Override public void run() {
             if (!active) return;
             updateSpeed();
-            phoneCompass.expireStaleHeading();
+            if (!useGpsDirection) phoneCompass.expireStaleHeading();
+            updateDirection();
+            updateDistances();
+            updateAudioStatus();
             handler.postDelayed(this, 1000);
         }
     };
@@ -66,10 +82,16 @@ public class MainActivity extends Activity implements LocationListener {
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         Object retained = getLastNonConfigurationInstance();
-        session = retained instanceof TripSession ? (TripSession) retained : new TripSession();
+        tripStore = new TripStore(this);
+        TripSession storedSession = tripStore.load();
+        session = retained instanceof RetainedState ? ((RetainedState) retained).session : storedSession;
+        travel = retained instanceof RetainedState ? ((RetainedState) retained).travel : new TravelTracker(this);
+        sampleSound = new ArrivalSound(this);
         arrivalPreferences = getSharedPreferences("arrival_preferences", MODE_PRIVATE);
         session.arrivalSoundEnabled = arrivalPreferences.getBoolean("sound_enabled", true);
         session.arrivalEffectsEnabled = arrivalPreferences.getBoolean("effects_enabled", true);
+        useGpsDirection = arrivalPreferences.getBoolean("gps_direction", true);
+        soundId = SoundCatalog.normalize(arrivalPreferences.getString("sound_id", SoundCatalog.DEFAULT_ID));
         manager = (LocationManager) getSystemService(LOCATION_SERVICE);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -81,6 +103,7 @@ public class MainActivity extends Activity implements LocationListener {
         phoneCompass = new PhoneCompass((android.hardware.SensorManager) getSystemService(SENSOR_SERVICE),
                 () -> getWindowManager().getDefaultDisplay().getRotation(), new PhoneCompass.Callback() {
             @Override public void onHeading(float heading) {
+                if (useGpsDirection) return;
                 compassDial.setHeading(heading);
                 String direction = getResources().getStringArray(R.array.compass_directions)[CompassMath.directionIndex(heading)];
                 int degrees = CompassMath.roundedDegrees(heading);
@@ -88,6 +111,7 @@ public class MainActivity extends Activity implements LocationListener {
                 compassReading.setContentDescription(getString(R.string.compass_accessible, direction, degrees));
             }
             @Override public void onUnavailable(int message) {
+                if (useGpsDirection) return;
                 compassDial.setHeading(Float.NaN);
                 compassReading.setText(message);
                 compassReading.setContentDescription(getString(message));
@@ -132,7 +156,45 @@ public class MainActivity extends Activity implements LocationListener {
         selectTab(session.selectedTab);
     }
 
-    @Override public Object onRetainNonConfigurationInstance() { return session; }
+    @Override public Object onRetainNonConfigurationInstance() { return new RetainedState(session, travel); }
+    TripSession tripSession() { return session; }
+    TravelTracker travelTracker() { return travel; }
+
+    private void saveCollection() {
+        if (!tripStore.save(session)) storageStatus.setText(R.string.storage_problem);
+        else storageStatus.setText(R.string.storage_local);
+    }
+    private void updateDistances() {
+        odoText.setText(getString(R.string.distance_km, travel.getOdoMeters() / 1000));
+        tripText.setText(getString(R.string.distance_km, travel.getTripMeters() / 1000));
+        launchText.setText(getString(R.string.distance_launch, travel.getSessionMeters() / 1000));
+    }
+    private void updateDirection() {
+        directionTitle.setText(useGpsDirection ? R.string.gps_direction_title : R.string.compass_title);
+        directionNote.setText(useGpsDirection ? R.string.gps_direction_note : R.string.compass_note);
+        if (!useGpsDirection) return;
+        Float heading = travel.getCourseDegrees();
+        compassDial.setHeading(heading == null ? Float.NaN : heading);
+        if (heading == null) {
+            compassReading.setText(R.string.gps_direction_waiting);
+            compassReading.setContentDescription(getString(R.string.gps_direction_waiting));
+        } else {
+            String direction = getResources().getStringArray(R.array.compass_directions)[CompassMath.directionIndex(heading)];
+            int degrees = CompassMath.roundedDegrees(heading);
+            compassReading.setText(getString(R.string.compass_reading, direction, degrees));
+            compassReading.setContentDescription(getString(R.string.gps_direction_accessible, direction, degrees));
+        }
+    }
+    private void updateAudioStatus() {
+        int liveReason = sampleSound.availabilityReason();
+        if (soundAttemptActive) {
+            int playbackReason = lastPlaybackFromOverlay ? cityArrivalOverlay.lastSoundReason() : sampleSound.lastReason();
+            lastAudioFailure = playbackReason == R.string.audio_reason_playback ? playbackReason : 0;
+        }
+        int reason = liveReason != 0 ? liveReason : lastAudioFailure != 0 ? lastAudioFailure
+                : !session.arrivalSoundEnabled ? R.string.audio_reason_disabled : R.string.audio_waits_for_city;
+        audioStatus.setText(reason);
+    }
 
     private LinearLayout page(int id) {
         LinearLayout layout = new LinearLayout(this);
@@ -180,7 +242,8 @@ public class MainActivity extends Activity implements LocationListener {
         LinearLayout compassColumn = new LinearLayout(this);
         compassColumn.setOrientation(LinearLayout.VERTICAL);
         compassColumn.setGravity(Gravity.CENTER);
-        compassColumn.addView(label(R.string.compass_title, 15));
+        directionTitle = label(R.string.gps_direction_title, 15);
+        compassColumn.addView(directionTitle);
         compassDial = new CompassView(this);
         compassDial.setId(R.id.compass_dial);
         compassColumn.addView(compassDial, new LinearLayout.LayoutParams(dp(104), dp(104)));
@@ -189,7 +252,8 @@ public class MainActivity extends Activity implements LocationListener {
         compassColumn.addView(compassReading);
         instruments.addView(compassColumn, new LinearLayout.LayoutParams(dp(120), -2));
         gauge.addView(instruments);
-        gauge.addView(label(R.string.compass_note, 13));
+        directionNote = label(R.string.gps_direction_note, 13);
+        gauge.addView(directionNote);
         page.addView(gauge);
         LinearLayout cityCard = card(Color.rgb(225, 236, 221));
         cityCard.addView(label(R.string.city_label, 16));
@@ -197,6 +261,41 @@ public class MainActivity extends Activity implements LocationListener {
         city.setId(R.id.gps_city);
         cityCard.addView(city);
         page.addView(cityCard);
+        LinearLayout distances = card(Color.WHITE);
+        distances.setPadding(dp(12), dp(8), dp(12), dp(10));
+        LinearLayout meters = new LinearLayout(this);
+        LinearLayout odoColumn = new LinearLayout(this);
+        odoColumn.setOrientation(LinearLayout.VERTICAL);
+        TextView odoLabel = label(R.string.distance_odo, 16);
+        odoLabel.setPadding(0, dp(2), 0, dp(2)); odoColumn.addView(odoLabel);
+        odoText = label("", 24); odoText.setId(R.id.distance_odo);
+        odoText.setPadding(0, dp(2), 0, dp(2)); odoColumn.addView(odoText);
+        meters.addView(odoColumn, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout tripColumn = new LinearLayout(this);
+        tripColumn.setOrientation(LinearLayout.VERTICAL);
+        TextView tripLabel = label(R.string.distance_trip, 16);
+        tripLabel.setPadding(0, dp(2), 0, dp(2)); tripColumn.addView(tripLabel);
+        tripText = label("", 24); tripText.setId(R.id.distance_trip);
+        tripText.setPadding(0, dp(2), 0, dp(2)); tripColumn.addView(tripText);
+        meters.addView(tripColumn, new LinearLayout.LayoutParams(0, -2, 1));
+        distances.addView(meters);
+        launchText = label("", 15); launchText.setId(R.id.distance_launch);
+        launchText.setPadding(0, dp(4), 0, dp(4));
+        Button resetTrip = button(R.id.reset_trip, R.string.distance_reset_trip, false);
+        resetTrip.setOnClickListener(view -> new android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.distance_reset_title).setMessage(R.string.distance_reset_message)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.distance_reset_trip, (dialog, which) -> {
+                    travel.resetTrip(); updateDistances();
+                }).show());
+        LinearLayout tripActions = new LinearLayout(this);
+        tripActions.setGravity(Gravity.CENTER_VERTICAL);
+        tripActions.addView(launchText, new LinearLayout.LayoutParams(0, -2, 1));
+        tripActions.addView(resetTrip, new LinearLayout.LayoutParams(-2, -2));
+        distances.addView(tripActions);
+        TextView distanceNote = label(R.string.distance_note, 13);
+        distanceNote.setPadding(0, dp(2), 0, dp(2)); distances.addView(distanceNote);
+        page.addView(distances);
         status = label("GPS를 준비하고 있어요", 15);
         page.addView(status);
         LinearLayout invitation = card(YELLOW);
@@ -220,6 +319,21 @@ public class MainActivity extends Activity implements LocationListener {
         locationSettings.setOnClickListener(v -> startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)));
         settings.addView(locationSettings);
         settings.addView(label(R.string.location_privacy, 14));
+        android.widget.Switch direction = new android.widget.Switch(this);
+        direction.setId(R.id.gps_direction_toggle);
+        direction.setText(R.string.gps_direction_setting);
+        direction.setTextSize(17); direction.setMinHeight(dp(52));
+        direction.setChecked(useGpsDirection);
+        direction.setOnCheckedChangeListener((button, checked) -> {
+            useGpsDirection = checked;
+            arrivalPreferences.edit().putBoolean("gps_direction", checked).apply();
+            if (phoneCompass != null) {
+                phoneCompass.stop();
+                if (!checked && active) phoneCompass.start();
+            }
+            updateDirection();
+        });
+        settings.addView(direction, new LinearLayout.LayoutParams(-1, -2));
         android.widget.Switch sound = new android.widget.Switch(this);
         sound.setId(R.id.arrival_sound_toggle);
         sound.setText(R.string.arrival_sound_setting);
@@ -229,6 +343,7 @@ public class MainActivity extends Activity implements LocationListener {
         sound.setOnCheckedChangeListener((button, checked) -> {
             session.arrivalSoundEnabled = checked;
             arrivalPreferences.edit().putBoolean("sound_enabled", checked).apply();
+            updateAudioStatus();
         });
         settings.addView(sound, new LinearLayout.LayoutParams(-1, -2));
         android.widget.Switch effects = new android.widget.Switch(this);
@@ -243,9 +358,48 @@ public class MainActivity extends Activity implements LocationListener {
         });
         settings.addView(effects, new LinearLayout.LayoutParams(-1, -2));
         settings.addView(label(R.string.arrival_settings_note, 14));
+        settings.addView(label(R.string.audio_sample_picker, 17));
+        android.widget.Spinner samples = new android.widget.Spinner(this);
+        samples.setId(R.id.sound_samples);
+        String[] names = new String[SoundCatalog.TITLE_RES.length];
+        for (int i = 0; i < names.length; i++) names[i] = getString(SoundCatalog.TITLE_RES[i]);
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        samples.setAdapter(adapter);
+        samples.setSelection(SoundCatalog.indexOf(soundId));
+        samples.setMinimumHeight(dp(52));
+        samples.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                soundId = SoundCatalog.IDS[position];
+                lastAudioFailure = 0;
+                soundAttemptActive = false;
+                arrivalPreferences.edit().putString("sound_id", soundId).apply();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        });
+        settings.addView(samples, new LinearLayout.LayoutParams(-1, -2));
+        Button hear = button(R.id.sound_sample_preview, R.string.audio_sample_preview, false);
+        hear.setOnClickListener(view -> {
+            soundAttemptActive = true;
+            lastPlaybackFromOverlay = false;
+            sampleSound.play(soundId);
+            updateAudioStatus();
+            if (sampleSound.lastReason() == 0) audioStatus.setText(R.string.audio_ready);
+        });
+        settings.addView(hear);
+        audioStatus = label("", 15); audioStatus.setId(R.id.audio_status);
+        settings.addView(audioStatus);
+        storageStatus = label(tripStore.hasRecoveryWarning() ? R.string.storage_problem : R.string.storage_local, 14);
+        storageStatus.setId(R.id.storage_status);
+        settings.addView(storageStatus);
         Button preview = button(R.id.arrival_preview, R.string.arrival_preview_button, false);
-        preview.setOnClickListener(view -> cityArrivalOverlay.show(getString(R.string.arrival_preview_city),
-                CityArrivalOverlay.Kind.PREVIEW, session.arrivalSoundEnabled, session.arrivalEffectsEnabled));
+        preview.setOnClickListener(view -> {
+            soundAttemptActive = session.arrivalSoundEnabled;
+            lastPlaybackFromOverlay = true;
+            cityArrivalOverlay.show(getString(R.string.arrival_preview_city), CityArrivalOverlay.Kind.PREVIEW,
+                    session.arrivalSoundEnabled, session.arrivalEffectsEnabled, soundId, "KR|경기도|수원시");
+            updateAudioStatus();
+        });
         settings.addView(preview);
         page.addView(settings);
     }
@@ -267,6 +421,7 @@ public class MainActivity extends Activity implements LocationListener {
         foundButton = button(R.id.card_found, R.string.found_button, true);
         foundButton.setOnClickListener(view -> {
             session.markFound();
+            saveCollection();
             renderCard();
             discoveries.announceForAccessibility(discoveries.getText());
         });
@@ -274,6 +429,7 @@ public class MainActivity extends Activity implements LocationListener {
         Button next = button(R.id.card_next, R.string.next_card, false);
         next.setOnClickListener(view -> {
             session.nextCard();
+            saveCollection();
             renderCard();
             cardTitle.announceForAccessibility(cardTitle.getText());
         });
@@ -295,23 +451,7 @@ public class MainActivity extends Activity implements LocationListener {
         page.addView(stampList);
         page.addView(label(R.string.stamps_explanation, 15));
         page.addView(label(R.string.session_privacy, 14));
-        Button reset = button(R.id.new_journey, R.string.new_journey, false);
-        reset.setOnClickListener(view -> new android.app.AlertDialog.Builder(this)
-                .setTitle(R.string.reset_title).setMessage(R.string.reset_message)
-                .setNegativeButton(R.string.reset_cancel, null)
-                .setPositiveButton(R.string.reset_confirm, (dialog, which) -> {
-                    cityArrivalOverlay.hide();
-                    session.resetJourney();
-                    // Discard in-flight pre-reset geocoding before allowing a new confirmation.
-                    epoch++;
-                    resolving = false;
-                    cityRequestId++;
-                    cityAnchor = null;
-                    lastCityRequest = 0;
-                    renderCard();
-                    renderStamps();
-                }).show());
-        page.addView(reset);
+
     }
     private void selectTab(int index) {
         session.selectedTab = index;
@@ -358,18 +498,41 @@ public class MainActivity extends Activity implements LocationListener {
             stampList.addView(empty);
             return;
         }
-        int number = 0;
+        LinearLayout row = null;
+        int index = 0;
         for (TripSession.Stamp stamp : session.stamps()) {
-            LinearLayout tile = card(number % 2 == 0 ? YELLOW : Color.rgb(225, 236, 221));
-            tile.addView(label(getString(R.string.stamp_number, ++number), 15));
-            tile.addView(label(stamp.city, 30));
+            if (index % 4 == 0) {
+                row = new LinearLayout(this);
+                row.setGravity(Gravity.TOP);
+                stampList.addView(row, new LinearLayout.LayoutParams(-1, -2));
+            }
+            LinearLayout tile = new LinearLayout(this);
+            tile.setOrientation(LinearLayout.VERTICAL);
+            tile.setGravity(Gravity.CENTER_HORIZONTAL);
+            tile.setPadding(dp(2), dp(8), dp(2), dp(10));
+            tile.setTag(stamp.key);
             CityBadgeView badge = new CityBadgeView(this);
-            badge.setCity(stamp.city);
-            LinearLayout.LayoutParams badgeSize = new LinearLayout.LayoutParams(dp(76), dp(76));
-            badgeSize.gravity = Gravity.CENTER_HORIZONTAL;
-            tile.addView(badge, badgeSize);
-            tile.addView(label(R.string.stamp_confirmed, 16));
-            stampList.addView(tile);
+            badge.setCity(stamp.key, stamp.city);
+            tile.addView(badge, new LinearLayout.LayoutParams(dp(52), dp(52)));
+            TextView name = label(stamp.city, 14); name.setMaxLines(2);
+            name.setPadding(0, dp(4), 0, dp(2));
+            tile.addView(name);
+            TextView visits = label(getString(R.string.stamp_visits, stamp.visits), 14);
+            visits.setPadding(0, 0, 0, dp(2));
+            tile.addView(visits);
+            TextView logoType = label(badge.isOfficialLogo() ? R.string.logo_official
+                    : badge.isOriginalBadge() ? R.string.logo_original : R.string.logo_pending, 10);
+            logoType.setPadding(0, 0, 0, 0);
+            tile.addView(logoType);
+            tile.setContentDescription(getString(R.string.stamp_accessible, stamp.city, stamp.visits));
+            tile.setOnClickListener(view -> new android.app.AlertDialog.Builder(this).setTitle(stamp.city)
+                    .setMessage(getString(R.string.stamp_visits, stamp.visits)).setPositiveButton(android.R.string.ok, null).show());
+            row.addView(tile, new LinearLayout.LayoutParams(0, -2, 1));
+            index++;
+        }
+        while (index % 4 != 0) {
+            row.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+            index++;
         }
     }
     private Button button(int id, int text, boolean primary) {
@@ -408,13 +571,20 @@ public class MainActivity extends Activity implements LocationListener {
         speed.setContentDescription(getString(R.string.speed_unknown));
         city.setText("위치를 기다리고 있어요");
         startGps();
-        phoneCompass.start();
+        if (!useGpsDirection) phoneCompass.start();
+        updateDirection();
+        updateDistances();
+        updateAudioStatus();
         handler.post(ticker);
     }
     @Override public void onPause() {
         getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         active = false;
         cityArrivalOverlay.hide();
+        sampleSound.stop();
+        saveCollection();
+        travel.clearAnchor();
+        travel.save();
         phoneCompass.stop();
         session.interruptCityConfirmation();
         epoch++;
@@ -471,6 +641,9 @@ public class MainActivity extends Activity implements LocationListener {
     @Override public void onLocationChanged(Location location) {
         if (!active) return;
         latest = new Location(location);
+        travel.accept(location);
+        updateDirection();
+        updateDistances();
         updateSpeed();
         long age = (SystemClock.elapsedRealtimeNanos() - location.getElapsedRealtimeNanos()) / 1_000_000;
         if (age >= 0 && age <= 10_000 && location.hasAccuracy() && location.getAccuracy() <= 100) {
@@ -479,6 +652,8 @@ public class MainActivity extends Activity implements LocationListener {
     }
     @Override public void onProviderDisabled(String provider) {
         latest = null;
+        travel.clearAnchor();
+        updateDirection();
         session.interruptCityConfirmation();
         speed.setText("—");
         speed.setContentDescription(getString(R.string.speed_unknown));
@@ -501,6 +676,7 @@ public class MainActivity extends Activity implements LocationListener {
                 : getString(R.string.speed_reading, String.valueOf(value)));
         status.setText(value == null ? "GPS 속도를 확인하고 있어요 · 신호가 약할 수 있어요" : "GPS로 측정한 대략적인 속도예요");
         if (age < 0 || age > 10_000) {
+            travel.clearAnchor();
             session.interruptCityConfirmation();
             city.setText("위치를 다시 확인하고 있어요");
             cityAnchor = null;
@@ -510,8 +686,7 @@ public class MainActivity extends Activity implements LocationListener {
     private void resolveCity(Location location) {
         long now = SystemClock.elapsedRealtime();
         if (resolving || (lastCityRequest > 0 && now - lastCityRequest < 60_000)) return;
-        if (!session.needsCityConfirmation() && cityAnchor != null
-                && cityAnchor.distanceTo(location) < 1000 && now - lastCityRequest < 300_000) return;
+        // One lookup per minute: do not hide nearby city changes behind a five-minute cache.
         if (!Geocoder.isPresent()) {
             city.setText("이 기기에서는 도시 조회를 지원하지 않아요");
             return;
@@ -565,13 +740,9 @@ public class MainActivity extends Activity implements LocationListener {
         String stampKey = null;
         if (addresses != null && !addresses.isEmpty()) {
             Address address = addresses.get(0);
-            name = address.getLocality();
-            if (name == null || name.trim().isEmpty()) name = address.getSubAdminArea();
-            if (name != null && !name.trim().isEmpty()) {
-                stampKey = String.valueOf(address.getCountryCode()) + "|"
-                        + String.valueOf(address.getAdminArea()) + "|" + name.trim();
-            }
-            if (name == null || name.trim().isEmpty()) name = address.getAdminArea();
+            CityIdentity identity = CityIdentity.from(address);
+            name = identity == null ? address.getAdminArea() : identity.name;
+            stampKey = identity == null ? null : identity.key;
         }
         if (name == null || name.trim().isEmpty()) {
             session.interruptCityConfirmation();
@@ -581,10 +752,16 @@ public class MainActivity extends Activity implements LocationListener {
             city.setText(name);
             int previousStampCount = session.stampCount();
             if (session.observeCity(stampKey, name, SystemClock.elapsedRealtime())) {
+                saveCollection();
                 renderStamps();
                 CityArrivalOverlay.Kind kind = session.stampCount() > previousStampCount
                         ? CityArrivalOverlay.Kind.FIRST_VISIT : CityArrivalOverlay.Kind.RETURN_VISIT;
-                cityArrivalOverlay.show(name, kind, session.arrivalSoundEnabled, session.arrivalEffectsEnabled);
+                cityArrivalOverlay.show(name, kind, session.arrivalSoundEnabled, session.arrivalEffectsEnabled, soundId, stampKey);
+                if (session.arrivalSoundEnabled) {
+                    soundAttemptActive = true;
+                    lastPlaybackFromOverlay = true;
+                    updateAudioStatus();
+                }
             }
         }
     }

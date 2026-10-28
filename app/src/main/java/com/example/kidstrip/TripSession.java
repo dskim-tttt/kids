@@ -6,14 +6,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 
-/** Memory-only play state. Never contains coordinates or writes to disk/Bundles. */
+/** City collection and play state. TripStore persists aggregates, never coordinates or routes. */
 public final class TripSession {
     public static final long CITY_CONFIRM_MS = 60_000;
     private static final long MAX_OBSERVATION_GAP_MS = 360_000;
     public static final int CARD_COUNT = 6;
     public static final class Stamp {
+        public final String key;
         public final String city;
-        private Stamp(String city) { this.city = city; }
+        public final int visits;
+        private Stamp(String key, String city, int visits) {
+            this.key = key;
+            this.city = city;
+            this.visits = visits;
+        }
     }
     private final LinkedHashMap<String, Stamp> stamps = new LinkedHashMap<>();
     private final Set<Integer> discoveries = new HashSet<>();
@@ -56,11 +62,32 @@ public final class TripSession {
         }
         lastObservation = elapsedMs;
         if (elapsedMs - candidateSince < CITY_CONFIRM_MS) return false;
-        stamps.putIfAbsent(key, new Stamp(name.trim()));
+        Stamp previous = stamps.get(key);
+        int visits = previous == null ? 1 : previous.visits == Integer.MAX_VALUE
+                ? Integer.MAX_VALUE : previous.visits + 1;
+        stamps.put(key, new Stamp(key, name.trim(), visits));
         confirmedCity = key;
         interruptCityConfirmation();
         return true;
     }
+    // Persistence access stays package-private; confirmation timestamps and candidates are transient.
+    String confirmedCityKey() { return confirmedCity; }
+    Set<Integer> discoveredCardIndexes() { return new HashSet<>(discoveries); }
+    void restoreStamp(String key, String city, int visits) {
+        Stamp previous = stamps.get(key);
+        if (previous == null || visits > previous.visits) {
+            stamps.put(key, new Stamp(key, city, visits));
+        }
+    }
+    void restoreConfirmedCity(String key) { confirmedCity = stamps.containsKey(key) ? key : null; }
+    void restoreDiscoveries(Set<Integer> cards, int index) {
+        for (int discovered : cards) {
+            if (discovered >= 0 && discovered < CARD_COUNT) discoveries.add(discovered);
+        }
+        card = index >= 0 && index < CARD_COUNT ? index : 0;
+    }
+
+    /** Legacy model helper; the application no longer exposes collection deletion as a new trip. */
     public void resetJourney() {
         stamps.clear();
         confirmedCity = null;

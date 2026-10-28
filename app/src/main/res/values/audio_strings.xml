@@ -1,0 +1,16 @@
+<resources>
+    <string name="audio_sample_melody">도시 멜로디</string>
+    <string name="audio_sample_bell">맑은 종소리</string>
+    <string name="audio_sample_sparkle">반짝반짝</string>
+    <string name="audio_sample_picker">도시 알림 소리 고르기</string>
+    <string name="audio_sample_preview">선택한 소리 미리듣기</string>
+    <string name="audio_ready">소리 재생 준비됨 · 미디어 음량을 사용해요</string>
+    <string name="audio_reason_disabled">앱의 도시 알림 소리가 꺼져 있어요</string>
+    <string name="audio_reason_quiet">휴대폰이 무음 또는 진동 모드여서 소리를 내지 않아요</string>
+    <string name="audio_reason_dnd">휴대폰의 방해금지 설정 때문에 소리를 내지 않아요</string>
+    <string name="audio_reason_dnd_unknown">방해금지 설정을 확인할 수 없어 소리를 내지 않았어요</string>
+    <string name="audio_reason_media_volume">미디어 음량이 0이거나 음소거되어 있어요</string>
+    <string name="audio_reason_unavailable">이 기기의 소리 상태를 확인할 수 없어요</string>
+    <string name="audio_reason_playback">소리를 재생하지 못했어요 · 기기의 오디오 연결을 확인해 주세요</string>
+    <string name="audio_waits_for_city">도시 알림은 같은 도시가 두 번 확인된 뒤 재생돼요. 미리듣기로 먼저 확인해 보세요.</string>
+</resources>

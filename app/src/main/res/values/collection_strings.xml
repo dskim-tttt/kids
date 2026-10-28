@@ -1,0 +1,22 @@
+<resources>
+    <string name="gps_direction_title">이동 방향</string>
+    <string name="gps_direction_setting">GPS 이동 방향 사용</string>
+    <string name="gps_direction_note">GPS 진행 방향 · 진북 기준\n정지하거나 신호가 약하면 방향을 기다려요.</string>
+    <string name="gps_direction_waiting">이동하면 표시해요</string>
+    <string name="gps_direction_accessible">이동 방향: %1$s, 진북 기준 %2$d도</string>
+    <string name="distance_odo">전체 ODO</string>
+    <string name="distance_trip">리셋 후 TRIP</string>
+    <string name="distance_km">%1$,.2f km</string>
+    <string name="distance_launch">이번 실행 %1$,.2f km</string>
+    <string name="distance_reset_trip">TRIP 초기화</string>
+    <string name="distance_reset_title">TRIP 거리만 초기화할까요?</string>
+    <string name="distance_reset_message">전체 ODO, 이번 실행 거리, 도장과 방문 횟수는 그대로 보관해요.</string>
+    <string name="distance_note">앱을 사용하는 동안 측정한 대략적인 GPS 거리예요.</string>
+    <string name="storage_local">도장·방문 횟수·발견·거리는 이 휴대폰에 보관해요. 이동 경로와 좌표는 저장하지 않아요.</string>
+    <string name="storage_problem">기존 기록을 보호하고 있어요. 저장에 문제가 있어 새 기록이 남지 않을 수 있어요.</string>
+    <string name="stamp_visits">방문 %1$d회</string>
+    <string name="stamp_accessible">%1$s, %2$d회 방문</string>
+    <string name="logo_official">지자체 로고</string>
+    <string name="logo_original">여행 배지</string>
+    <string name="logo_pending">로고 준비 중</string>
+</resources>

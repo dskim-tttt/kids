@@ -91,8 +91,12 @@ public final class CityArrivalOverlay {
         return view;
     }
     public void show(String cityName, Kind kind, boolean playSound, boolean effects) {
+        show(cityName, kind, playSound, effects, SoundCatalog.DEFAULT_ID, null);
+    }
+    public int lastSoundReason() { return sound.lastReason(); }
+    public void show(String cityName, Kind kind, boolean playSound, boolean effects, String soundId, String cityKey) {
         hide();
-        badge.setCity(cityName);
+        badge.setCity(cityKey, cityName);
         city.setText(cityName);
         boolean preview = kind == Kind.PREVIEW;
         boolean revisit = kind == Kind.RETURN_VISIT;
@@ -112,7 +116,7 @@ public final class CityArrivalOverlay {
             panel.animate().scaleX(1).scaleY(1).alpha(1).setDuration(420)
                     .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
         }
-        if (playSound) sound.play();
+        if (playSound) sound.play(soundId);
         city.announceForAccessibility(activity.getString(preview ? R.string.arrival_preview_announcement
                 : revisit ? R.string.arrival_revisit_announcement : R.string.stamp_announcement, cityName));
         AccessibilityManager accessibility = (AccessibilityManager) activity.getSystemService(Context.ACCESSIBILITY_SERVICE);
